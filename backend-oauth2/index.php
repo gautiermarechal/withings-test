@@ -51,55 +51,55 @@ function refreshAccessToken($refresh_token) {
     return json_decode($response, true);
 }
 
-if (isset($_GET['code'])) {
-    $authorization_code = $_GET['code'];
     
-    echo "Authorization code: " . htmlspecialchars($authorization_code) . "<br>";
 
-    if (!isset($_COOKIE['access_token']) || !isset($_COOKIE['access_token_expires_at']) || time() > $_COOKIE['access_token_expires_at']) {
-        $token_data = requestAccessToken($authorization_code);
-		echo "Token data: " . json_encode($token_data) . "<br>";
-        if (isset($token_data['body']['access_token'])) {
-            $access_token = $token_data['body']['access_token'];
-            $refresh_token = $token_data['body']['refresh_token'];
-            $expires_in = $token_data['body']['expires_in'];
+if (!isset($_COOKIE['access_token']) || !isset($_COOKIE['access_token_expires_at']) || time() > $_COOKIE['access_token_expires_at']) {
+	if (isset($_GET['code'])) {
+		$authorization_code = $_GET['code'];
+		$token_data = requestAccessToken($authorization_code);
+		if (isset($token_data['body']['access_token'])) {
+			$access_token = $token_data['body']['access_token'];
+			$refresh_token = $token_data['body']['refresh_token'];
+			$expires_in = $token_data['body']['expires_in'];
 
-            echo "Access token: " . $access_token . "<br>";
-            echo "Refresh token: " . $refresh_token . "<br>";
-
-            setcookie("access_token", $access_token, time() + $expires_in, "/");
-            setcookie("refresh_token", $refresh_token, time() + (3600 * 24 * 30), "/");
-            setcookie("access_token_expires_at", time() + $expires_in, time() + $expires_in, "/");
+			setcookie("access_token", $access_token, time() + $expires_in, "/");
+			setcookie("refresh_token", $refresh_token, time() + (3600 * 24 * 30), "/");
+			setcookie("access_token_expires_at", time() + $expires_in, time() + $expires_in, "/");
 
 			$is_loggedin = true;
-        } else {
+		} else {
 			$is_loggedin = false;
-            echo "Failed to retrieve access token.";
-        }
-    } else {
-        $access_token = $_COOKIE['access_token'];
-        $refresh_token = $_COOKIE['refresh_token'];
-
-		$is_loggedin = true;
-
-        echo "Access token: " . $access_token . "<br>";
-        echo "Refresh token: " . $refresh_token . "<br>";
-
-    }
+			echo "Failed to retrieve access token.";
+		}
+	} else {
+		$is_loggedin = false;
+		echo "Authorization code not found.";
+	}
+	
+	
 } else {
-	$is_loggedin = false;
-    echo "Authorization code not found.";
+	$access_token = $_COOKIE['access_token'];
+	$refresh_token = $_COOKIE['refresh_token'];
+
+	$is_loggedin = true;
+
 }
 
+
 if($is_loggedin) {
-	$measurements = file_get_contents('https://wbsapi.withings.net/measure?action=getmeas&category=1&offset=0&limit=1&lastupdate=0', false, stream_context_create([
+	$response = file_get_contents('https://wbsapi.withings.net/measure?meastype=1&action=getmeas&category=1&offset=0&lastupdate=0', false, stream_context_create([
 		'http' => [
 			'method' => 'GET',
 			'header' => 'Authorization: Bearer ' . $access_token,
 		],
 	]));
 
-	echo "Response: " . $response . "<br>";
+	$measurements = json_decode($response, true)['body']['measuregrps'];
+	$weights = [];
+
+	foreach ($measurements as $weights) {
+		array_push($weights, reset($weights['measures'])['value']);
+	}
 }
 ?>
 
@@ -115,7 +115,7 @@ if($is_loggedin) {
         <h1>Welcome, User!</h1>
         <p>Here is your data:</p>
 		<?php if ($is_loggedin): ?>
-		<?php echo htmlspecialchars($measurements); ?>	
+		<?php echo htmlspecialchars(json_encode($weights)); ?>	
 		<?php endif; ?>
     <?php else: ?>
 		<h1>Sign in to retrieve your personal data</h1>

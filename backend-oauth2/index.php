@@ -10,6 +10,10 @@ $token_url = 'https://wbsapi.withings.net/v2/oauth2';
 $is_loggedin = false;
 $measurements = [];
 
+function convertToKilograms($value, $unit) {
+	return $value * pow(10, $unit);
+}
+
 function requestAccessToken($authorization_code) {
     global $token_url, $client_id, $client_secret, $redirect_uri;
 
@@ -95,11 +99,22 @@ if($is_loggedin) {
 	]));
 
 	$measurements = json_decode($response, true)['body']['measuregrps'];
-	$weights = [];
 
-	foreach ($measurements as $weights) {
-		array_push($weights, reset($weights['measures'])['value']);
+	$weights_with_dates = array();
+
+	foreach ($measurements as $entry) {
+		if (isset($entry['measures']) && is_array($entry['measures'])) {
+			foreach ($entry['measures'] as $measure) {
+				if ($measure['type'] == 1) {
+					$weight_in_kg = convertToKilograms($measure['value'], $measure['unit']);
+					$date = date("Y-m-d H:i:s", $entry['date']);
+					$weights_with_dates[] = array('weight' => $weight_in_kg, 'date' => $date);
+				}
+			}
+		}
 	}
+
+	
 }
 ?>
 
@@ -115,7 +130,9 @@ if($is_loggedin) {
         <h1>Welcome, User!</h1>
         <p>Here is your data:</p>
 		<?php if ($is_loggedin): ?>
-		<?php echo htmlspecialchars(json_encode($weights)); ?>	
+			<?php foreach ($weights_with_dates as $item): ?>
+            	<li><?php echo htmlspecialchars($item['weight']); ?> kg on <?php echo htmlspecialchars($item['date']); ?></li>
+        	<?php endforeach; ?>
 		<?php endif; ?>
     <?php else: ?>
 		<h1>Sign in to retrieve your personal data</h1>

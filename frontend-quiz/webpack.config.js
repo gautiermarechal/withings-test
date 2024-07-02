@@ -1,48 +1,42 @@
 const path = require("path");
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
+  mode: "development",
   entry: "./src/index.js",
   output: {
-    path: path.resolve(__dirname, "build"),
-    filename: "main.js"
+    filename: "bundle.js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
   },
-  mode: 'production',
+  devServer: {
+    static: "./dist",
+    hot: true,
+  },
   module: {
     rules: [
       {
-        test: /\.(js|jsx)$/,
-        exclude: /(node_modules)/,
-        loader: "babel-loader",
-        options: { presets: ["@babel/preset-env", "@babel/preset-react"] }
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ["@babel/preset-env", "@babel/preset-react"],
+          },
+        },
       },
       {
         test: /\.css$/,
-        use: ["style-loader", "css-loader"]
-      }
-    ]
-  },
-  resolve: { extensions: ["*", ".js", ".jsx"] },
-  devServer: {
-    static: './public',
-    historyApiFallback: true,
-    hot: true,
-    port: 9000,
-    open: true,
-    client: {
-      logging: 'error',
-      overlay: {
-        errors: true,
-        warnings: false
-      }
-    },
+        use: ["style-loader", "css-loader", "postcss-loader"],
+      },
+    ],
   },
   plugins: [
     new HtmlWebpackPlugin({
-      filename: 'index.html',
-      template: 'public/index.html',
-      favicon: 'public/favicon.ico'
+      template: "./public/index.html",
     }),
   ],
+  resolve: {
+    extensions: [".js", ".jsx"],
+  },
 };
